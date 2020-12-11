@@ -22,4 +22,6 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 });
 
 // Rutas de aplicaciones externas
-Route::post('external/service', [ApiController::class, 'external_service'])->name('api.external.service');
+Route::post('external/service/init', [ApiController::class, 'external_service_init'])->name('api.external.service.init');
+Route::get('external/service/map/{id}', [ApiController::class, 'external_service_map'])->name('api.external.service.map');
+Route::post('external/service/store', [ApiController::class, 'external_service_store'])->name('api.external.service.store');

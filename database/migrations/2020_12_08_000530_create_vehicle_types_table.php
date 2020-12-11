@@ -16,8 +16,11 @@ class CreateVehicleTypesTable extends Migration
         Schema::create('vehicle_types', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
+            $table->string('description')->nullable();
+            $table->string('image')->nullable();
             $table->integer('status')->nullable()->default(0);
             $table->timestamps();
+            $table->softDeletes('deleted_at');
         });
     }
 
