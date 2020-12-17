@@ -6,10 +6,11 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Passport\HasApiTokens;
 
 class User extends \TCG\Voyager\Models\User
 {
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -22,7 +23,8 @@ class User extends \TCG\Voyager\Models\User
         'email',
         'password',
         'phone',
-        'avatar'
+        'avatar',
+        'firebase_token'
     ];
 
     /**
@@ -43,4 +45,12 @@ class User extends \TCG\Voyager\Models\User
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    public function driver(){
+        return $this->hasOne('App\Models\Driver', 'user_id');
+    }
+
+    public function customer(){
+        return $this->hasOne('App\Models\Customer', 'user_id');
+    }
 }

@@ -21,6 +21,9 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
 
+Route::post('/auth/login', [ApiController::class, 'login']);
+Route::post('/auth/register', [ApiController::class, 'register']);
+
 // Rutas de aplicaciones externas
 Route::post('external/service/init', [ApiController::class, 'external_service_init'])->name('api.external.service.init');
 Route::get('external/service/map/{id}', [ApiController::class, 'external_service_map'])->name('api.external.service.map');

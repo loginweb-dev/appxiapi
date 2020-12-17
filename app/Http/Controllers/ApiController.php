@@ -14,6 +14,7 @@ use App\Http\Controllers\LocationsController;
 // Models
 use App\Models\User;
 use App\Models\Customer;
+use App\Models\Driver;
 use App\Models\ServiceLocation;
 use App\Models\Service;
 use App\Models\PaymentType;
@@ -21,6 +22,61 @@ use App\Models\VehicleType;
 
 class ApiController extends Controller
 {
+    public function login(Request $request){
+        $user = null;
+        $token = null;
+
+        // return 1;
+
+        if($request->social_login){
+            $user = User::with('driver')->where('email', $request->email)->first() ?? $this->newDriver($request);
+            $token = $user->createToken('appxiapi')->accessToken;
+
+            // Actualizar token de firebase
+            if($request->firebase_token){
+                User::where('id', $user->id)->update([
+                    'firebase_token' => $request->firebase_token
+                ]);
+            }
+        }else{
+            $credentials = ['email' => $request->email, 'password' => $request->password];
+            if (Auth::attempt($credentials)) {
+                $auth = Auth::user();
+                $token = $auth->createToken('livemedic')->accessToken;
+                $user = User::with('driver')->where('id', $auth->id)->first();
+
+                // Actualizar token de firebase
+                if($request->firebase_token){
+                    $user_update = User::find($user->id);
+                    $user_update->firebase_token = $request->firebase_token;
+                    $user_update->save();
+                }
+            }
+        }
+
+        if($user && $token){
+            return response()->json(['user' => $user, 'token' => $token]);
+        }else{
+            return response()->json(['error' => "credentials don't exist"]);
+        }
+    }
+
+    public function register(Request $request){
+        
+            $user = $this->newDriver($request);
+            if(!$user){
+                return response()->json(['error' => "email exist"]);
+            }
+            $token = $user->createToken('livemedic')->accessToken;
+            
+            if($user && $token){
+                return response()->json(['user' => $user, 'token' => $token]);
+            }else{
+                return response()->json(['error' => "registration failed"]);
+            }
+        
+    }
+
     public function external_service_init(Request $request){
         
         DB::beginTransaction();
@@ -103,6 +159,37 @@ class ApiController extends Controller
         } catch (\Throwable $th) {
             DB::rollback();
             return response()->json(['error' => 'Server error']);
+        }
+    }
+
+    // ======================================
+
+    public function newDriver($data){
+        DB::beginTransaction();
+        try {
+            $user = User::create([
+                'name' => $data->name,
+                'email' => $data->email,
+                'password' => Hash::make($data->password),
+                'avatar' => $data->avatar,
+                'firebase_token' => $data->firebase_token
+            ]);
+
+            $driver = Driver::create([
+                'name' => $data->name,
+                'last_name' => $data->last_name,
+                'phones' => $data->phones,
+                'address' => $data->address,
+                'user_id' => $user->id,
+            ]);
+
+            DB::commit();
+
+            return User::with('driver')->where('id', $user->id)->first();
+
+        } catch (\Throwable $th) {
+            DB::rollback();
+            return null;
         }
     }
 }
