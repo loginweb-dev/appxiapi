@@ -21,6 +21,7 @@ class CreateServicesTable extends Migration
             $table->foreignId('vehicle_type_id')->nullable()->constrained('vehicle_types');
             $table->string('latitude')->nullable();
             $table->string('longitude')->nullable();
+            $table->foreignId('service_location_id')->nullable()->constrained('service_locations');
             $table->decimal('suggested_amount', 10, 2)->nullable();
             $table->decimal('amount_paid', 10, 2)->nullable();
             $table->decimal('discount_amount', 10, 2)->nullable();

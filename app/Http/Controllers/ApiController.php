@@ -19,9 +19,11 @@ use App\Models\ServiceLocation;
 use App\Models\Service;
 use App\Models\PaymentType;
 use App\Models\VehicleType;
+use App\Models\Notification;
 
 class ApiController extends Controller
 {
+    // =========== Auth ===========
     public function login(Request $request){
         $user = null;
         $token = null;
@@ -77,6 +79,28 @@ class ApiController extends Controller
         
     }
 
+    // =========== Services ===========
+    public function services_list($driver_id){
+        $services = Service::with(['driver', 'customer'])
+                    ->where('driver_id', $driver_id)->get();
+        return response()->json(['services' => $services]);
+    }
+
+    public function services_notifications_list($user_id){
+        $notifications = Notification::where('type', 'service')
+                            ->where('user_id', $user_id)
+                            ->where('status', 1)->get();
+        $array = [];
+        foreach ($notifications as $value) {
+            $detail = json_decode($value->details);
+            array_push($array, $detail->id);
+        }
+        $services = Service::with(['driver', 'customer', 'service_location'])
+                    ->whereIn('id', $array)
+                    ->get();
+        return response()->json(['services' => $services]);
+    }
+
     public function external_service_init(Request $request){
         
         DB::beginTransaction();
@@ -127,32 +151,35 @@ class ApiController extends Controller
     }
 
     public function external_service_store(Request $request){
-        
         DB::beginTransaction();
         try {
 
-            $service = Service::findOrFail($request->id);
-            $service->latitude = $request->origin_latitude;
-            $service->longitude = $request->origin_longitude;
-            $service->payment_type_id = $request->payment_type_id;
-            $service->vehicle_type_id = $request->vehicle_type_id;
-            $service->save();
-            
             // Obtener la localidad más próxima
             $location = (new LocationsController)->proximal_location($request->destiny_latitude, $request->destiny_longitude);
             
             if(!$location){
                 return response()->json(['error' => 'Locations not availables']);
             }
-
             $service_location = ServiceLocation::create([
-                'service_id' => $service->id,
                 'location_id' => $location['location_id'],
                 'latitude' => $request->destiny_latitude,
                 'longitude' => $request->destiny_longitude
             ]);
+            $service_location->latitude = $request->destiny_latitude;
+            $service_location->longitude = $request->destiny_longitude;
+            $service_location->save();
+
+            $service = Service::findOrFail($request->id);
+            $service->latitude = $request->origin_latitude;
+            $service->longitude = $request->origin_longitude;
+            $service->service_location_id = $service_location->id;
+            $service->payment_type_id = $request->payment_type_id;
+            $service->vehicle_type_id = $request->vehicle_type_id;
+            $service->save();
 
             DB::commit();
+
+            $this->send_notification_drivers($service->id);
 
             return response()->json(['data' => $service]);
 
@@ -191,5 +218,40 @@ class ApiController extends Controller
             DB::rollback();
             return null;
         }
+    }
+
+    public function send_notification_drivers($id){
+        $url =  env('FIREBASE_CLOUD_MESSAGING_URL');
+        $headers = [
+            'Content-Type' => 'application/json',
+            'Authorization' => 'key='.env('FIREBASE_CLOUD_MESSAGING_TOKEN')
+        ];
+
+        try {
+            $users = User::where('firebase_token', '<>', NULL)->get();
+            foreach ($users as $user) {
+                $body = [
+                    "to" => $user->firebase_token,
+                    "content_available" => true,
+                    "notification" => [
+                        "title" => 'Nueva solicitud de taxi',
+                        "body" => 'Un cliente cercano a ti solicitó taxi.',
+                        "priority" => "high"
+                    ],
+                    "data" => [
+                        "type" => "service"
+                    ]
+                ];
+        
+                $this->send_request('post', $url, $headers, $body);
+
+                // Create notification
+                Notification::create([
+                    'type' => 'service',
+                    'user_id' => $user->id,
+                    'details' => '{"id": '.$id.'}',
+                ]);
+            }
+        } catch (\Throwable $th) {}
     }
 }

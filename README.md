@@ -1,5 +1,7 @@
 # appxi API
 
+## Requerimientos
+- laravel-echo-server
 
 ## Instlacion
 - Laravel Passport

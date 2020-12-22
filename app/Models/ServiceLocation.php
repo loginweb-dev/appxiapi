@@ -9,7 +9,7 @@ class ServiceLocation extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['title', 'description', 'service_id', 'location_id', 'latitude', 'longitude', 'favorite', 'stored'];
+    protected $fillable = ['title', 'description', 'location_id', 'latitude', 'longitude', 'favorite', 'stored'];
 
     public function location(){
         return $this->belongsTo(Location::class, 'location_id');

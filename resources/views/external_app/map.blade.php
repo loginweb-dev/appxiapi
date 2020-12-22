@@ -133,6 +133,12 @@
                 <div class="section-btn">
                     <button type="submit" class="btn btn-primary btn-lg btn-block">Pedir taxi <i class="fas fa-map-marker-alt"></i></button>
                 </div>
+                <div class="section-loading">
+                    <div class="d-flex align-items-center">
+                        <strong>Enviando solicitud...</strong>
+                        <div class="spinner-border ml-auto text-primary" role="status" aria-hidden="true"></div>
+                      </div>
+                </div>
             </div>
         </form>
     </body>
@@ -153,11 +159,11 @@
             background: linear-gradient(to bottom right, #335372, #5D92C6);
             color: white
         }
-        .section-vehicle-types, .section-payment-types{
+        .section-vehicle-types, .section-payment-types, .section-loading{
             background-color: rgba(255, 255, 255, 0.8);
             padding: 10px
         }
-        .section-btn, .section-vehicle-types, .section-payment-types{
+        .section-btn, .section-vehicle-types, .section-payment-types, .section-loading{
             display: none
         }
     </style>
@@ -189,6 +195,9 @@
             });
 
             $('#form-service').submit(function(e){
+                $('.section-btn').fadeOut('slow', function(){
+                    $('.section-loading').fadeIn();
+                });
                 e.preventDefault();
                 let url = $(this).attr('action');
                 let data = $(this).serialize();
@@ -212,7 +221,9 @@
                             confirmButtonText: '<i class="far fa-frown"></i> Entiendo!',
                             footer: '<a href="https://appxi.com.bo" target="_blank">Ir a soporte de atención al cliente</a>'
                         });
+                        $('.section-btn').fadeIn();
                     }
+                    $('.section-loading').fadeOut();
                 });
             });
         });

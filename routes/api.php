@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 
 // Controllers
 use App\Http\Controllers\ApiController;
+use App\Http\Controllers\NotificationsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,6 +17,7 @@ use App\Http\Controllers\ApiController;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
+Route::get('/test', [ApiController::class, 'test']);
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
@@ -25,6 +27,12 @@ Route::post('/auth/login', [ApiController::class, 'login']);
 Route::post('/auth/register', [ApiController::class, 'register']);
 
 // Rutas de aplicaciones externas
-Route::post('external/service/init', [ApiController::class, 'external_service_init'])->name('api.external.service.init');
-Route::get('external/service/map/{id}', [ApiController::class, 'external_service_map'])->name('api.external.service.map');
+Route::post('external/service/init', [ApiController::class, 'external_service_init']);
+Route::get('external/service/map/{id}', [ApiController::class, 'external_service_map']);
 Route::post('external/service/store', [ApiController::class, 'external_service_store'])->name('api.external.service.store');
+
+Route::group(['middleware' => ['auth:api']], function () {
+    Route::get('services/{driver_id}/list', [ApiController::class, 'services_list']);
+    Route::get('services/{user_id}/notifications/list', [ApiController::class, 'services_notifications_list']);
+});
+// Route::get('services/{user_id}/notifications/list', [ApiController::class, 'services_notifications_list']);

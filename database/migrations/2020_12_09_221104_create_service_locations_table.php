@@ -17,7 +17,6 @@ class CreateServiceLocationsTable extends Migration
             $table->id();
             $table->string('title')->nullable();
             $table->string('description')->nullable();
-            $table->foreignId('service_id')->constrained('services');
             $table->foreignId('location_id')->constrained('locations');
             $table->string('latitude')->nullable();
             $table->string('longitude')->nullable();
