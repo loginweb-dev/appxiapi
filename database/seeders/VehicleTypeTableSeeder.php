@@ -18,14 +18,14 @@ class VehicleTypeTableSeeder extends Seeder
     {
         //
         VehicleType::create([
-            'name' => "2 ruedas",
+            'name' => "Motocicleta",
             'description' => '',
             'image' => '',
             'status' => 1
         ]);
 
         VehicleType::create([
-            'name' => "4 ruedas",
+            'name' => "Automóvil",
             'description' => '',
             'image' => '',
             'status' => 1

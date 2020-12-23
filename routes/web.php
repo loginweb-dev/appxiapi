@@ -18,8 +18,8 @@ Route::get('/', function () {
 });
 
 Route::get('/test', function(){
-    event(new \App\Events\TestEvent());
-    dd('enviado');
+    $vehicle = \App\Models\Vehicle::find(1);
+    event(new \App\Events\TrackingDriverEvent(1, $vehicle));
 });
 
 Route::group(['prefix' => 'admin'], function () {

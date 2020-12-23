@@ -19,7 +19,9 @@ use App\Models\ServiceLocation;
 use App\Models\Service;
 use App\Models\PaymentType;
 use App\Models\VehicleType;
+use App\Models\Vehicle;
 use App\Models\Notification;
+use App\Models\VehicleTranking;
 
 class ApiController extends Controller
 {
@@ -31,7 +33,7 @@ class ApiController extends Controller
         // return 1;
 
         if($request->social_login){
-            $user = User::with('driver')->where('email', $request->email)->first() ?? $this->newDriver($request);
+            $user = User::with('driver.vehicle')->where('email', $request->email)->first() ?? $this->newDriver($request);
             $token = $user->createToken('appxiapi')->accessToken;
 
             // Actualizar token de firebase
@@ -45,7 +47,7 @@ class ApiController extends Controller
             if (Auth::attempt($credentials)) {
                 $auth = Auth::user();
                 $token = $auth->createToken('livemedic')->accessToken;
-                $user = User::with('driver')->where('id', $auth->id)->first();
+                $user = User::with('driver.vehicle')->where('id', $auth->id)->first();
 
                 // Actualizar token de firebase
                 if($request->firebase_token){
@@ -79,9 +81,39 @@ class ApiController extends Controller
         
     }
 
+    // =========== Vehicle types ===========
+    public function vehicle_types_list(){
+        $vehicle_types = VehicleType::where('deleted_at', NULL)->where('status', 1)->get();
+        return response()->json(['vehicle_types' => $vehicle_types]);
+    }
+
+    // =========== Vehicles ===========
+    public function vehicle_tracking(Request $request){
+        DB::beginTransaction();
+        try {
+            Vehicle::where('id', $request->vehicle_id)->update([
+                'latitude' => $request->latitude,
+                'longitude' => $request->longitude
+            ]);
+            VehicleTranking::create([
+                'vehicle_id' => $request->vehicle_id,
+                'latitude' => $request->latitude,
+                'longitude' => $request->longitude
+            ]);
+            DB::commit();
+
+            event(new \App\Events\TestEvent());
+
+            return response()->json(['success' => 1]);
+        } catch (\Throwable $th) {
+            DB::rollback();
+            return response()->json(['error' => 1]);
+        }
+    }
+
     // =========== Services ===========
     public function services_list($driver_id){
-        $services = Service::with(['driver', 'customer'])
+        $services = Service::with(['driver', 'customer', 'service_location'])
                     ->where('driver_id', $driver_id)->get();
         return response()->json(['services' => $services]);
     }
@@ -189,25 +221,66 @@ class ApiController extends Controller
         }
     }
 
+    public function accept_service(Request $request){
+        DB::beginTransaction();
+        try {
+            Service::where('id', $request->service_id)->update([
+                'driver_id' => $request->driver_id,
+                'status' => 2,
+            ]);
+
+            Notification::where('details', '{"id": '.$request->service_id.'}')->where('user_id', $request->user_id)->update([
+                'status' => 2,
+            ]);
+
+            // Get updates services
+            $services = Service::with(['driver', 'customer', 'service_location'])->where('driver_id', $request->driver_id)->get();
+
+            // Get updates notifications
+            $notifications = Notification::where('type', 'service')
+                            ->where('user_id', $request->user_id)
+                            ->where('status', 1)->get();
+            $array = [];
+            foreach ($notifications as $value) {
+                $detail = json_decode($value->details);
+                array_push($array, $detail->id);
+            }
+            $notifications = Service::with(['driver', 'customer', 'service_location'])
+                        ->whereIn('id', $array)
+                        ->get();
+
+            DB::commit();
+            return response()->json(['services' => $services, 'notifications' => $notifications]);
+        } catch (\Throwable $th) {
+            DB::rollback();
+            return response()->json(['error' => 'Server error']);
+        }
+    }
+
     // ======================================
 
     public function newDriver($data){
         DB::beginTransaction();
         try {
             $user = User::create([
-                'name' => $data->name,
+                'name' => $data->first_name,
                 'email' => $data->email,
                 'password' => Hash::make($data->password),
                 'avatar' => $data->avatar,
                 'firebase_token' => $data->firebase_token
             ]);
 
+            $vehicle = Vehicle::create([
+                'vehicle_type_id' => $data->vehicle_type_id ?? 1
+            ]);
+
             $driver = Driver::create([
-                'name' => $data->name,
+                'first_name' => $data->first_name,
                 'last_name' => $data->last_name,
                 'phones' => $data->phones,
                 'address' => $data->address,
                 'user_id' => $user->id,
+                'vehicle_id' => $vehicle ? $vehicle->id : null
             ]);
 
             DB::commit();

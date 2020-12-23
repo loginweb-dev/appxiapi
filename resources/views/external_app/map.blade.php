@@ -228,4 +228,23 @@
             });
         });
     </script>
+
+    <script src="//{{ request()->getHost() }}:{{ env('LARAVEL_ECHO_PORT') }}/socket.io/socket.io.js"></script>
+    <script src="{{ asset('js/app.js') }}"></script>
+    <script>
+        window.Echo.channel('channelTrackingDriver-{{ $id }}')
+        .listen('.trackingDriver', (data) => {
+            if(data.vehicle.latitude && data.vehicle.longitude){
+                new google.maps.Marker({
+                    position: {
+                        lat: parseFloat(data.vehicle.latitude),
+                        lng: parseFloat(data.vehicle.longitude)
+                    },
+                    icon: 'https://maps.google.com/mapfiles/kml/shapes/parking_lot_maps.png',
+                    map: map,
+                });
+            }
+            console.log(data.vehicle.latitude, data.vehicle.longitude)
+        });
+    </script>
 </html>

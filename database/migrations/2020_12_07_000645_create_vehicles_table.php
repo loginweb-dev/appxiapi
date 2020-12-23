@@ -16,12 +16,14 @@ class CreateVehiclesTable extends Migration
         Schema::create('vehicles', function (Blueprint $table) {
             $table->id();
             $table->foreignId('vehicle_type_id')->constrained('vehicle_types');
-            $table->foreignId('driver_id')->constrained('drivers');
             $table->string('plate_number')->nullable();
             $table->string('model')->nullable();
             $table->string('brand')->nullable();
             $table->string('color')->nullable();
             $table->integer('status')->nullable()->default(0);
+            $table->string('image')->nullable();
+            $table->string('latitude')->nullable();
+            $table->string('longitude')->nullable();
             $table->timestamps();
             $table->softDeletes('deleted_at');
         });
