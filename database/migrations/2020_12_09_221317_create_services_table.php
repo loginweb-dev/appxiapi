@@ -29,6 +29,7 @@ class CreateServicesTable extends Migration
             $table->string('observations')->nullable();
             $table->integer('status')->nullable()->default(0);
             $table->string('platform')->nullable();
+            $table->string('details')->nullable();
             $table->timestamps();
             $table->softDeletes('deleted_at');
         });

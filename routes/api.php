@@ -31,14 +31,15 @@ Route::get('/vehicle_types/list', [ApiController::class, 'vehicle_types_list']);
 
 // Rutas de aplicaciones externas
 Route::post('external/service/init', [ApiController::class, 'external_service_init']);
-Route::get('external/service/map/{id}', [ApiController::class, 'external_service_map']);
 Route::post('external/service/store', [ApiController::class, 'external_service_store'])->name('api.external.service.store');
 
 Route::group(['middleware' => ['auth:api']], function () {
     // Services
     Route::get('services/{driver_id}/list', [ApiController::class, 'services_list']);
     Route::get('services/{user_id}/notifications/list', [ApiController::class, 'services_notifications_list']);
+    Route::post('services/driver/offer', [ApiController::class, 'offer_service']);
     Route::post('services/driver/accept', [ApiController::class, 'accept_service']);
+    Route::post('services/driver/update', [ApiController::class, 'update_service']);
 
 
     // Vehicles

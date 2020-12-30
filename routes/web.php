@@ -2,6 +2,9 @@
 
 use Illuminate\Support\Facades\Route;
 
+// Controllers
+use App\Http\Controllers\ApiController;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -17,7 +20,13 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get('map/{id}', [ApiController::class, 'external_service_map']);
+
 Route::get('/test', function(){
+    event(new \App\Events\TestEvent());
+});
+
+Route::get('/test1', function(){
     $vehicle = \App\Models\Vehicle::find(1);
     event(new \App\Events\TrackingDriverEvent(1, $vehicle));
 });

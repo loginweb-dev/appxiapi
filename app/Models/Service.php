@@ -9,7 +9,7 @@ class Service extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['customer_id', 'driver_id', 'payment_type_id', 'vehicle_type_id', 'latitude', 'longitude', 'service_location_id', 'suggested_amount', 'amount_paid', 'discount_amount', 'rating', 'observations', 'status', 'platform'];
+    protected $fillable = ['customer_id', 'driver_id', 'payment_type_id', 'vehicle_type_id', 'latitude', 'longitude', 'service_location_id', 'suggested_amount', 'amount_paid', 'discount_amount', 'rating', 'observations', 'status', 'platform', 'details'];
 
     public function customer(){
         return $this->belongsTo('App\Models\Customer', 'customer_id');
@@ -21,5 +21,9 @@ class Service extends Model
 
     public function service_location(){
         return $this->belongsTo('App\Models\ServiceLocation', 'service_location_id');
+    }
+
+    public function offer(){
+        return $this->hasOne('App\Models\ServiceOffer', 'service_id');
     }
 }

@@ -51,8 +51,14 @@
                             origin = new google.maps.Marker({
                                 position: pos,
                                 map: map,
+                                draggable: true
                             });
                             map.setCenter(pos);
+
+                            origin.addListener('dragend', function(event){
+                                $('#form-service input[name="origin_latitude"]').val(event.latLng.lat());
+                                $('#form-service input[name="origin_longitude"]').val(event.latLng.lng());
+                            });
 
                             $('#form-service input[name="origin_latitude"]').val(pos.lat);
                             $('#form-service input[name="origin_longitude"]').val(pos.lng);

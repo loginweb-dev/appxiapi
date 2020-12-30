@@ -17,6 +17,7 @@ use App\Models\Customer;
 use App\Models\Driver;
 use App\Models\ServiceLocation;
 use App\Models\Service;
+use App\Models\ServiceOffer;
 use App\Models\PaymentType;
 use App\Models\VehicleType;
 use App\Models\Vehicle;
@@ -33,7 +34,7 @@ class ApiController extends Controller
         // return 1;
 
         if($request->social_login){
-            $user = User::with('driver.vehicle')->where('email', $request->email)->first() ?? $this->newDriver($request);
+            $user = User::with('driver.vehicle')->where('email', $request->email)->first() ?? $this->new_driver($request);
             $token = $user->createToken('appxiapi')->accessToken;
 
             // Actualizar token de firebase
@@ -67,7 +68,7 @@ class ApiController extends Controller
 
     public function register(Request $request){
         
-            $user = $this->newDriver($request);
+            $user = $this->new_driver($request);
             if(!$user){
                 return response()->json(['error' => "email exist"]);
             }
@@ -102,7 +103,7 @@ class ApiController extends Controller
             ]);
             DB::commit();
 
-            event(new \App\Events\TestEvent());
+            event(new \App\Events\TrackingDriverEvent($request->vehicle_id, Vehicle::find($request->vehicle_id)));
 
             return response()->json(['success' => 1]);
         } catch (\Throwable $th) {
@@ -115,21 +116,15 @@ class ApiController extends Controller
     public function services_list($driver_id){
         $services = Service::with(['driver', 'customer', 'service_location'])
                     ->where('driver_id', $driver_id)->get();
-        return response()->json(['services' => $services]);
+        $services_offer = Service::with(['driver', 'customer', 'service_location'])
+                                    ->whereHas('offer', function($q) use ($driver_id){
+                                        $q->where('driver_id', $driver_id)->where('status', 1);
+                                    })->get();
+        return response()->json(['services' => $services, 'servicesOffer' => $services_offer]);
     }
 
     public function services_notifications_list($user_id){
-        $notifications = Notification::where('type', 'service')
-                            ->where('user_id', $user_id)
-                            ->where('status', 1)->get();
-        $array = [];
-        foreach ($notifications as $value) {
-            $detail = json_decode($value->details);
-            array_push($array, $detail->id);
-        }
-        $services = Service::with(['driver', 'customer', 'service_location'])
-                    ->whereIn('id', $array)
-                    ->get();
+        $services = $this->get_service_notifications($user_id);
         return response()->json(['services' => $services]);
     }
 
@@ -160,12 +155,13 @@ class ApiController extends Controller
     
                 $service = Service::create([
                     'customer_id' => $customer->id,
-                    'status' => 1
+                    'status' => 1,
+                    'details' => '{"id": "'.$request->service_id.'"}'
                 ]);
     
                 DB::commit();
 
-                return url('api/external/service/map/'.$service->id);
+                return url('map/'.$service->id);
     
             }else{
                 return 'Invalid phone number';
@@ -221,6 +217,27 @@ class ApiController extends Controller
         }
     }
 
+    public function offer_service(Request $request){
+        try {
+            ServiceOffer::create([
+                'service_id' => $request->service_id,
+                'driver_id' => $request->driver_id,
+                'amount' => $request->amount
+            ]);
+
+            // Get updates services
+            $services = Service::with(['driver', 'customer', 'service_location'])->where('driver_id', $request->driver_id)->get();
+
+            // Get updates notifications
+            $notifications = $this->get_service_notifications($request->user_id);
+
+            DB::commit();
+            return response()->json(['services' => $services, 'notifications' => $notifications]);
+        } catch (\Throwable $th) {
+            return response()->json(['error' => $th]);
+        }
+    }
+
     public function accept_service(Request $request){
         DB::beginTransaction();
         try {
@@ -236,21 +253,27 @@ class ApiController extends Controller
             // Get updates services
             $services = Service::with(['driver', 'customer', 'service_location'])->where('driver_id', $request->driver_id)->get();
 
-            // Get updates notifications
-            $notifications = Notification::where('type', 'service')
-                            ->where('user_id', $request->user_id)
-                            ->where('status', 1)->get();
-            $array = [];
-            foreach ($notifications as $value) {
-                $detail = json_decode($value->details);
-                array_push($array, $detail->id);
-            }
-            $notifications = Service::with(['driver', 'customer', 'service_location'])
-                        ->whereIn('id', $array)
-                        ->get();
+            DB::commit();
+            return response()->json(['services' => $services]);
+        } catch (\Throwable $th) {
+            DB::rollback();
+            return response()->json(['error' => 'Server error']);
+        }
+    }
+
+    public function update_service(Request $request){
+        DB::beginTransaction();
+        try {
+            Service::where('id', $request->service_id)->update([
+                'driver_id' => $request->driver_id,
+                'status' => $request->status,
+            ]);
+
+            // Get updates services
+            $services = Service::with(['driver', 'customer', 'service_location'])->where('driver_id', $request->driver_id)->get();
 
             DB::commit();
-            return response()->json(['services' => $services, 'notifications' => $notifications]);
+            return response()->json(['services' => $services]);
         } catch (\Throwable $th) {
             DB::rollback();
             return response()->json(['error' => 'Server error']);
@@ -259,7 +282,7 @@ class ApiController extends Controller
 
     // ======================================
 
-    public function newDriver($data){
+    public function new_driver($data){
         DB::beginTransaction();
         try {
             $user = User::create([
@@ -326,5 +349,23 @@ class ApiController extends Controller
                 ]);
             }
         } catch (\Throwable $th) {}
+    }
+
+    public function get_service_notifications($user_id){
+        try {
+            $notifications = Notification::where('type', 'service')
+                            ->where('user_id', $user_id)
+                            ->where('status', 1)->get();
+            $array = [];
+            foreach ($notifications as $value) {
+                $detail = json_decode($value->details);
+                array_push($array, $detail->id);
+            }
+            return Service::with(['driver', 'customer', 'service_location'])
+                        ->whereIn('id', $array)
+                        ->get();
+        } catch (\Throwable $th) {
+            return [];
+        }       
     }
 }
